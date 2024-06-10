@@ -1,0 +1,17 @@
+[package]
+name = "zk-mastermind"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.76"
+publish = false
+
+[dependencies]
+eframe = "0.27.1"
+egui = "0.27.2"
+egui_extras = { version = "0.27.2", features = ["default", "image"] }
+env_logger = "0.11.3"
+rand = "0.8.5"
+regex = "1.10.5"
+itertools = "0.13.0"
+
