@@ -1,20 +1,20 @@
 use std::cmp::max;
 use itertools::Itertools;
 
-pub fn same(sa: String, sb: String) -> i32 {
+pub fn same(sa: String, sb: String) -> usize {
     let a: Vec<_> = sa.chars().collect();
     let b: Vec<_> = sb.chars().collect();
     let mut ans = 0;
     for i in 0..4 {
-        ans += (a[i] == b[i]) as i32;
+        ans += (a[i] == b[i]) as usize;
     }
     ans
 }
 
-pub fn common(sa: String, sb: String) -> i32 {
+pub fn common(sa: String, sb: String) -> usize {
     let a: Vec<_> = sa.chars().sorted().collect();
     let b: Vec<_> = sb.chars().sorted().collect();
-    let mut array = [[0; 4]; 4];
+    let mut array: [[usize; 4]; 4] = [[0; 4]; 4];
     if a[0] == b[0] {
         array[0][0] = 1
     }
@@ -34,7 +34,7 @@ pub fn common(sa: String, sb: String) -> i32 {
         for j in 1..4 {
             array[i][j] = max(
                 max(array[i-1][j], array[i][j-1]),
-                array[i-1][j-1] + ((a[i] == b[j]) as i32)
+                array[i-1][j-1] + ((a[i] == b[j]) as usize)
             )
         }
     }

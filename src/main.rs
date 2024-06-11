@@ -2,7 +2,8 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 mod utils;
-use utils::{same, common};
+mod host;
+use host::{Host, HonestHost, EvilHost};
 use eframe::egui;
 use regex::Regex;
 
@@ -19,7 +20,8 @@ fn main() -> Result<(), eframe::Error> {
             // This gives us image support:
             egui_extras::install_image_loaders(&cc.egui_ctx);
 
-            Box::<MyApp>::default()
+            Box::<MyApp<HonestHost>>::default()
+            //Box::<MyApp<EvilHost>>::default()
         }),
     )
 }
@@ -49,8 +51,8 @@ fn main() -> Result<(), eframe::Error> {
 const GUESSES: usize = 8;
 
 // #[derive(Default)]
-struct MyApp {
-    answer: String,
+struct MyApp <H> {
+    host: H,
     // guesses: [Sequence; GUESSES],
     // responses: [Sequence; GUESSES],
     responses: Vec<String>,
@@ -59,12 +61,12 @@ struct MyApp {
 }
 
 // TODO: do we need all of this?
-impl Default for MyApp {
+impl <H> Default for MyApp<H> where H: Host {
     fn default() -> Self {
         Self {
             // seq: rand::thread_rng().sample_iter(vec!['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']).take(4).map(char::from).collect(),
             // TODO: make this random
-            answer: "abcd".to_owned(),
+            host: H::new(),
             // guesses: [Sequence::default(); GUESSES],
             // responses: [Sequence::default(); GUESSES],
             responses: vec![String::new(); GUESSES],
@@ -74,14 +76,13 @@ impl Default for MyApp {
     }
 }
 
-impl MyApp {
+impl <H>  MyApp <H> where H:Host {
     fn submit(&mut self, i: usize) -> String {
         // TODO: make this global
         let pattern: Regex = Regex::new(r"^[a-h]{4}$").unwrap();
         let mut s = self.buffer[i].clone();
         if pattern.is_match(&mut s) {
-            let same = same(s.clone(), self.answer.clone()) as usize;
-            let common = common(s.clone(), self.answer.clone()) as usize;
+            let (same, common) = self.host.guess(s);
             let mut response = ['x'; 4];
             for j in 0usize..common {
                 response[j] = 'a';
@@ -96,7 +97,7 @@ impl MyApp {
 }
 
 
-impl eframe::App for MyApp {
+impl <H> eframe::App for MyApp <H> where H:Host {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             macro_rules! new_row {
