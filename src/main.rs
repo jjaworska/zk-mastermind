@@ -3,7 +3,7 @@
 
 mod utils;
 mod host;
-use host::{Host, HonestHost, EvilHost};
+use host::{Host, HonestHost};
 use eframe::egui;
 use regex::Regex;
 
@@ -22,6 +22,7 @@ fn main() -> Result<(), eframe::Error> {
 
             Box::<MyApp<HonestHost>>::default()
             //Box::<MyApp<EvilHost>>::default()
+            //Box::<MyApp<CheatingHost>>::default()
         }),
     )
 }
