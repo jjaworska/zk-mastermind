@@ -6,15 +6,15 @@ const CHARSET: &[u8] = b"abcdefgh";
 const SEQUENCE_LEN: usize = 4;
 
 pub trait Host {
-    fn guess(&mut self, sequence: String) -> (usize, usize);
     fn new () -> Self;
+    fn guess(&mut self, sequence: String) -> (usize, usize);
 }
 
 pub struct HonestHost {
     sequence: String,
 }
 
-impl Host for HonestHost{
+impl Host for HonestHost {
     fn new () -> Self {
         let mut rng = rand::thread_rng();
         let random_seq = (0..SEQUENCE_LEN)

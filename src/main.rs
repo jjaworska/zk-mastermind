@@ -3,14 +3,20 @@
 
 mod utils;
 mod host;
+mod consts;
+
 use host::{Host, HonestHost};
 use eframe::egui;
 use regex::Regex;
 
+const GUESSES: usize = 8;
+const SEQLEN: usize = 4;
+
+
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([560.0, 240.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([400.0, 400.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -19,45 +25,16 @@ fn main() -> Result<(), eframe::Error> {
         Box::new(|cc| {
             // This gives us image support:
             egui_extras::install_image_loaders(&cc.egui_ctx);
-
             Box::<MyApp<HonestHost>>::default()
-            //Box::<MyApp<EvilHost>>::default()
-            //Box::<MyApp<CheatingHost>>::default()
         }),
     )
 }
 
-// #[derive(Default, Copy, Clone)]
-// struct Sequence {
-//     seq: [char; 4],
-// }
-//
-// impl Sequence {
-//     fn to_string(&self) -> String {
-//         self.seq.iter().collect()
-//     }
-// }
-//
-// #[derive(Default, Copy, Clone)]
-// struct Response {
-//     seq: [char; 4],
-// }
-//
-// impl Response {
-//     fn to_string(&self) -> String {
-//         self.seq.iter().collect()
-//     }
-// }
-
-const GUESSES: usize = 8;
-
 // #[derive(Default)]
 struct MyApp <H> {
     host: H,
-    // guesses: [Sequence; GUESSES],
-    // responses: [Sequence; GUESSES],
     responses: Vec<String>,
-    guesses_made: u32,
+    guesses_cnt: usize,
     buffer: Vec<String>,
 }
 
@@ -65,13 +42,9 @@ struct MyApp <H> {
 impl <H> Default for MyApp<H> where H: Host {
     fn default() -> Self {
         Self {
-            // seq: rand::thread_rng().sample_iter(vec!['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']).take(4).map(char::from).collect(),
-            // TODO: make this random
             host: H::new(),
-            // guesses: [Sequence::default(); GUESSES],
-            // responses: [Sequence::default(); GUESSES],
             responses: vec![String::new(); GUESSES],
-            guesses_made: 0,
+            guesses_cnt: 0,
             buffer: vec![String::new(); GUESSES],
         }
     }
@@ -84,12 +57,12 @@ impl <H>  MyApp <H> where H:Host {
         let mut s = self.buffer[i].clone();
         if pattern.is_match(&mut s) {
             let (same, common) = self.host.guess(s);
-            let mut response = ['x'; 4];
+            let mut response = ['x'; SEQLEN];
             for j in 0usize..common {
-                response[j] = 'a';
+                response[j] = 'y';
             }
             for j in 0usize..same {
-                response[j] = 'A';
+                response[j] = 'z';
             }
             return response.iter().collect::<String>()
         } // otherwise, do nothing
@@ -104,23 +77,43 @@ impl <H> eframe::App for MyApp <H> where H:Host {
             macro_rules! new_row {
                 ($i:literal) => {
                     ui.horizontal(|ui| {
-                        ui.add_enabled_ui(((self.guesses_made as usize) == $i), |ui| {
+                        ui.add_enabled_ui(((self.guesses_cnt) == $i), |ui| {
                             let name_label = ui.label(format!("Guess {}: ", ($i)+1));
-                            // TODO: make this narrower
-                            ui.text_edit_singleline(&mut self.buffer[$i])
-                                .labelled_by(name_label.id);
+                            let (response, painter) = ui.allocate_painter(
+                                egui::Vec2::new(120.0, 30.0),
+                                egui::Sense::hover(),
+                            );
+                            for j in 0..self.buffer[$i].len() {
+                                let cx = 15.0 + 30.0*(j as f32);
+                                painter.circle_filled(
+                                    response.rect.min + egui::Vec2::new(cx, 15.0),
+                                    10.0,
+                                    consts::COLORS[&self.buffer[$i].chars().nth(j).unwrap()]
+                                );
+                            }
+
                             if ui.button("Confirm").clicked() {
                                 self.responses[$i] = self.submit($i);
                                 if !self.responses[$i].is_empty() {
-                                    self.guesses_made += 1;
+                                    self.guesses_cnt += 1;
                                 }
                             }
                         });
-                        ui.label(format!("{}", self.responses[$i].to_string()));
+                        let (response2, painter2) = ui.allocate_painter(
+                            egui::Vec2::new(120.0, 30.0),
+                            egui::Sense::hover(),
+                        );
+                        for j in 0..self.responses[$i].len() {
+                            let cx = 15.0 + 30.0*(j as f32);
+                            painter2.circle_filled(
+                                response2.rect.min + egui::Vec2::new(cx, 15.0),
+                                10.0,
+                                consts::COLORS[&self.responses[$i].chars().nth(j).unwrap()]
+                            );
+                        }
                     });
                 }
             }
-
             // TODO: can we get rid of this?
             new_row!(0usize);
             new_row!(1usize);
@@ -130,6 +123,29 @@ impl <H> eframe::App for MyApp <H> where H:Host {
             new_row!(5usize);
             new_row!(6usize);
             new_row!(7usize);
+            ui.add(
+                egui::Image::new(egui::include_image!("../data/color_map.png")).max_width(200.0)
+            );
+
+            for (letter, color) in consts::COLORS.clone().into_iter() {
+                let key = egui::Key::from_name(&letter.to_string()).unwrap();
+                if ui.input(|u| u.key_pressed(key)) {
+                    if self.buffer[self.guesses_cnt].len() < SEQLEN {
+                        self.buffer[self.guesses_cnt].push(letter);
+                    }
+                }
+            }
+            if ui.input(|u| u.key_pressed(egui::Key::Backspace)) {
+                self.buffer[self.guesses_cnt].pop();
+            }
+            if ui.input(|u| u.key_pressed(egui::Key::Enter)) {
+                // TODO: get rid of code duplication
+                self.responses[self.guesses_cnt] = self.submit(self.guesses_cnt);
+                if !self.responses[self.guesses_cnt].is_empty() {
+                    self.guesses_cnt += 1;
+                }
+            }
         });
     }
 }
+
