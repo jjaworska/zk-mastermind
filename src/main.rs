@@ -16,7 +16,7 @@ const SEQLEN: usize = 4;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([400.0, 400.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([400.0, 444.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -36,6 +36,7 @@ struct MyApp <H> {
     responses: Vec<String>,
     guesses_cnt: usize,
     buffer: Vec<String>,
+    success: bool,
 }
 
 // TODO: do we need all of this?
@@ -46,12 +47,13 @@ impl <H> Default for MyApp<H> where H: Host {
             responses: vec![String::new(); GUESSES],
             guesses_cnt: 0,
             buffer: vec![String::new(); GUESSES],
+            success: false,
         }
     }
 }
 
 impl <H>  MyApp <H> where H:Host {
-    fn submit(&mut self, i: usize) -> String {
+    fn submit(&mut self, i: usize) -> () {
         // TODO: make this global
         let pattern: Regex = Regex::new(r"^[a-h]{4}$").unwrap();
         let mut s = self.buffer[i].clone();
@@ -64,9 +66,13 @@ impl <H>  MyApp <H> where H:Host {
             for j in 0usize..same {
                 response[j] = 'z';
             }
-            return response.iter().collect::<String>()
+            self.guesses_cnt += 1;
+            let response_ = response.iter().collect::<String>();
+            if response_.eq("zzzz") {
+               self.success = true;
+            }
+            self.responses[i] = response_;
         } // otherwise, do nothing
-        "".to_owned()
     }
 }
 
@@ -78,7 +84,7 @@ impl <H> eframe::App for MyApp <H> where H:Host {
                 ($i:literal) => {
                     ui.horizontal(|ui| {
                         ui.add_enabled_ui(((self.guesses_cnt) == $i), |ui| {
-                            let name_label = ui.label(format!("Guess {}: ", ($i)+1));
+                            ui.label(format!("Guess {}: ", ($i)+1));
                             let (response, painter) = ui.allocate_painter(
                                 egui::Vec2::new(120.0, 30.0),
                                 egui::Sense::hover(),
@@ -93,10 +99,7 @@ impl <H> eframe::App for MyApp <H> where H:Host {
                             }
 
                             if ui.button("Confirm").clicked() {
-                                self.responses[$i] = self.submit($i);
-                                if !self.responses[$i].is_empty() {
-                                    self.guesses_cnt += 1;
-                                }
+                                self.submit($i);
                             }
                         });
                         let (response2, painter2) = ui.allocate_painter(
@@ -123,11 +126,14 @@ impl <H> eframe::App for MyApp <H> where H:Host {
             new_row!(5usize);
             new_row!(6usize);
             new_row!(7usize);
-            ui.add(
-                egui::Image::new(egui::include_image!("../data/color_map.png")).max_width(200.0)
-            );
 
-            for (letter, color) in consts::COLORS.clone().into_iter() {
+            ui.add_space(15.0);
+            ui.vertical_centered( |ui| {
+                ui.add(egui::Image::new(egui::include_image!("../data/color_map.png")).max_width(200.0));
+            });
+            ui.add_space(15.0);
+
+            for (letter, _color) in consts::COLORS.clone().into_iter() {
                 let key = egui::Key::from_name(&letter.to_string()).unwrap();
                 if ui.input(|u| u.key_pressed(key)) {
                     if self.buffer[self.guesses_cnt].len() < SEQLEN {
@@ -139,13 +145,18 @@ impl <H> eframe::App for MyApp <H> where H:Host {
                 self.buffer[self.guesses_cnt].pop();
             }
             if ui.input(|u| u.key_pressed(egui::Key::Enter)) {
-                // TODO: get rid of code duplication
-                self.responses[self.guesses_cnt] = self.submit(self.guesses_cnt);
-                if !self.responses[self.guesses_cnt].is_empty() {
-                    self.guesses_cnt += 1;
-                }
+                self.submit(self.guesses_cnt);
             }
+            ui.vertical_centered(|ui| {
+                if self.guesses_cnt < 8 && !self.success {
+                    ui.set_opacity(0.0);
+                }
+                ui.style_mut().override_text_style = Some(egui::TextStyle::Heading);
+                ui.label(format!("{}", if self.success { "You won!" } else {"You lost!"}));
+                if ui.button("New game!").clicked() {
+                    *self = MyApp::<H>::default();
+                }
+            });
         });
     }
 }
-
