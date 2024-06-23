@@ -1,34 +1,51 @@
 use itertools::Itertools;
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
-use crate::utils::{same, common};
+use crate::crypto::Code;
+use crate::utils::{common, hash, same, string_to_code};
+use crate::proof::{CodeProof, prove};
 const CHARSET: &[u8] = b"abcdefgh";
 const SEQUENCE_LEN: usize = 4;
 
 pub trait Host {
     fn new () -> Self;
+    fn get_hash_with_proof(&self) -> ([u8; 32], CodeProof);
     fn guess(&mut self, sequence: String) -> (usize, usize);
 }
 
 pub struct HonestHost {
     sequence: String,
+    salt: [u8; 32],
+    hash: [u8; 32],
 }
 
 impl Host for HonestHost {
     fn new () -> Self {
         let mut rng = rand::thread_rng();
-        let random_seq = (0..SEQUENCE_LEN)
+        let random_seq : String = (0..SEQUENCE_LEN)
         .map(|_| {
             let idx = rng.gen_range(0..CHARSET.len());
             CHARSET[idx] as char
         })
         .collect();
+        let code = string_to_code(random_seq.clone());
+        let (hash, salt) = hash(code);
         HonestHost {
             sequence: random_seq,
+            salt,
+            hash,
         }
     }
     fn guess(&mut self, sequence: String)-> (usize, usize) {
         return (same(self.sequence.clone(), sequence.clone()), common(self.sequence.clone(), sequence.clone()))
+    }
+    
+    fn get_hash_with_proof(&self) -> ([u8; 32], CodeProof) {
+        let code = string_to_code(self.sequence.clone());
+        println!("{}", self.sequence);
+        println!("{:?}", code);
+        let proof = prove(code, self.salt, self.hash);
+        (self.hash, proof)
     }
 }
 
@@ -41,6 +58,13 @@ impl Host for EvilHost{ // host which always answers with (0, 0)
 
     fn guess(&mut self, _sequence: String)-> (usize, usize) {
         return (0, 0);
+    }
+    
+    fn get_hash_with_proof(&self) -> ([u8; 32], CodeProof) {
+        let code = Code{colors:[1, 1, 1, 1]};
+        let (hash, salt) = hash(code.clone());
+        let proof = prove(code, salt, hash);
+        (hash, proof)
     }
 }
 
@@ -90,5 +114,13 @@ impl Host for CheatingHost{
             }
         }
         return *ans;
+    }
+    
+    fn get_hash_with_proof(&self) -> ([u8; 32], CodeProof) {
+        let seq = self.possible_sequences.iter().next().unwrap().clone();
+        let code = string_to_code(seq);
+        let (hash, salt) = hash(code.clone());
+        let proof = prove(code, salt, hash);
+        (hash, proof)
     }
 }

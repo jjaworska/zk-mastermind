@@ -4,9 +4,13 @@
 mod utils;
 mod host;
 mod consts;
+mod proof;
+mod crypto;
+mod code_circuit;
 
-use host::{Host, HonestHost};
+use host::{EvilHost, HonestHost, Host};
 use eframe::egui;
+use proof::verify;
 use regex::Regex;
 
 const GUESSES: usize = 8;
@@ -33,6 +37,7 @@ fn main() -> Result<(), eframe::Error> {
 // #[derive(Default)]
 struct MyApp <H> {
     host: H,
+    hash_commited: [u8; 32], 
     responses: Vec<String>,
     guesses_cnt: usize,
     buffer: Vec<String>,
@@ -42,8 +47,12 @@ struct MyApp <H> {
 // TODO: do we need all of this?
 impl <H> Default for MyApp<H> where H: Host {
     fn default() -> Self {
+        let host = H::new();
+        let (hash, proof) = host.get_hash_with_proof();
+        assert!(verify(hash, proof));
         Self {
-            host: H::new(),
+            host,
+            hash_commited: hash,
             responses: vec![String::new(); GUESSES],
             guesses_cnt: 0,
             buffer: vec![String::new(); GUESSES],

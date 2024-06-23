@@ -1,5 +1,8 @@
 use std::cmp::max;
 use itertools::Itertools;
+use ark_std::iterable::Iterable;
+use sha2::{Digest, Sha256};
+use crate::crypto::{Code, CODE_LENGTH};
 
 pub fn same(sa: String, sb: String) -> usize {
     let a: Vec<_> = sa.chars().collect();
@@ -39,4 +42,29 @@ pub fn common(sa: String, sb: String) -> usize {
         }
     }
     array[3][3]
+}
+
+pub fn string_to_code(seq: String) -> Code {
+    let s: Vec<_> = seq.chars().collect();
+    let mut colors:[u8; CODE_LENGTH] =  [0, 0, 0, 0];
+    for i in 0..4 {
+        colors[i] = s[i] as u8 - 'a' as u8;
+    }
+    Code{colors}
+}
+
+pub fn hash (code: Code) -> ([u8; 32], [u8; 32]){
+    let salt = rand::random::<[u8; 32]>();
+
+    let mut hasher = Sha256::new();
+
+    code
+        .colors
+        .iter()
+        .for_each(|col| hasher.update([col]));
+    hasher.update(salt);
+
+    let hash_result = hasher.finalize();
+
+    (hash_result.into(), salt)
 }
