@@ -11,6 +11,7 @@ pub trait Host {
     fn new () -> Self;
     fn get_hash_with_proof(&self) -> ([u8; 32], Proof);
     fn guess(&mut self, sequence: String) -> (usize, usize, Proof);
+    fn surrender(&mut self) -> String;
 }
 
 pub struct HonestHost {
@@ -49,6 +50,10 @@ impl Host for HonestHost {
         let proof = prove(code, self.salt, self.hash);
         (self.hash, proof)
     }
+
+    fn surrender(&mut self) -> String {
+        self.sequence.clone()
+    }
 }
 
 pub struct EvilHost {}
@@ -70,6 +75,10 @@ impl Host for EvilHost{ // host which always answers with (0, 0)
         let (hash, salt) = hash(code.clone());
         let proof = prove(code, salt, hash);
         (hash, proof)
+    }
+
+    fn surrender(&mut self) -> String {
+        "xxxx".to_owned()
     }
 }
 
@@ -131,5 +140,9 @@ impl Host for CheatingHost{
         let (hash, salt) = hash(code.clone());
         let proof = prove(code, salt, hash);
         (hash, proof)
+    }
+
+    fn surrender(&mut self) -> String {
+        self.possible_sequences.iter().next().unwrap().clone()
     }
 }

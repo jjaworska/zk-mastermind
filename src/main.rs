@@ -21,7 +21,7 @@ const SEQLEN: usize = 4;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([400.0, 444.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([400.0, 475.0]),
         ..Default::default()
     };
     eframe::run_native(
@@ -166,6 +166,20 @@ impl <H> eframe::App for MyApp <H> where H:Host {
                 ui.label(format!("{}", if self.success { "You won!" } else {"You lost!"}));
                 if ui.button("New game!").clicked() {
                     *self = MyApp::<H>::default();
+                }
+                let (response, painter) = ui.allocate_painter(
+                    egui::Vec2::new(120.0, 30.0),
+                    egui::Sense::hover(),
+                );
+                for j in 0..4 {
+                    let cx = 15.0 + 30.0*(j as f32);
+                    painter.circle_filled(
+                        response.rect.min + egui::Vec2::new(cx, 15.0),
+                        10.0,
+                        consts::COLORS[&self.host.surrender().chars().nth(j).unwrap()].gamma_multiply(
+                            (self.guesses_cnt == 8 || self.success) as i32 as f32  // B)
+                        )
+                    );
                 }
             });
         });
