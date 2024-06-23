@@ -3,14 +3,14 @@ use rand::Rng;
 use std::collections::{HashMap, HashSet};
 use crate::crypto::Code;
 use crate::utils::{common, hash, same, string_to_code};
-use crate::proof::{CodeProof, prove};
+use crate::proof::{prove, prove_guess, Proof};
 const CHARSET: &[u8] = b"abcdefgh";
 const SEQUENCE_LEN: usize = 4;
 
 pub trait Host {
     fn new () -> Self;
-    fn get_hash_with_proof(&self) -> ([u8; 32], CodeProof);
-    fn guess(&mut self, sequence: String) -> (usize, usize);
+    fn get_hash_with_proof(&self) -> ([u8; 32], Proof);
+    fn guess(&mut self, sequence: String) -> (usize, usize, Proof);
 }
 
 pub struct HonestHost {
@@ -36,11 +36,13 @@ impl Host for HonestHost {
             hash,
         }
     }
-    fn guess(&mut self, sequence: String)-> (usize, usize) {
-        return (same(self.sequence.clone(), sequence.clone()), common(self.sequence.clone(), sequence.clone()))
+    fn guess(&mut self, sequence: String)-> (usize, usize, Proof) {
+        let (correct, common) = (same(self.sequence.clone(), sequence.clone()), common(self.sequence.clone(), sequence.clone()));
+        let proof = prove_guess(string_to_code(self.sequence.clone()), string_to_code(sequence), self.salt, self.hash, correct as u8, (common-correct) as u8);
+        return (correct, common, proof)
     }
     
-    fn get_hash_with_proof(&self) -> ([u8; 32], CodeProof) {
+    fn get_hash_with_proof(&self) -> ([u8; 32], Proof) {
         let code = string_to_code(self.sequence.clone());
         println!("{}", self.sequence);
         println!("{:?}", code);
@@ -56,11 +58,14 @@ impl Host for EvilHost{ // host which always answers with (0, 0)
         EvilHost { }
     }
 
-    fn guess(&mut self, _sequence: String)-> (usize, usize) {
-        return (0, 0);
+    fn guess(&mut self, sequence: String)-> (usize, usize, Proof) {
+        let code = Code{colors:[1, 1, 1, 1]};
+        let (hash, salt) = hash(code.clone());
+        let proof = prove_guess(code, string_to_code(sequence), salt, hash, 0, 0);
+        return (0, 0, proof);
     }
     
-    fn get_hash_with_proof(&self) -> ([u8; 32], CodeProof) {
+    fn get_hash_with_proof(&self) -> ([u8; 32], Proof) {
         let code = Code{colors:[1, 1, 1, 1]};
         let (hash, salt) = hash(code.clone());
         let proof = prove(code, salt, hash);
@@ -97,7 +102,7 @@ impl Host for CheatingHost{
         }
     }
 
-    fn guess(&mut self, sequence: String)-> (usize, usize) {
+    fn guess(&mut self, sequence: String)-> (usize, usize, Proof) {
         let mut m = self.worst_case_sequences.clone();
         for seq in self.possible_sequences.clone() {
             let (same, common) = (same(seq.clone(), sequence.clone()), common(seq.clone(), sequence.clone()));
@@ -113,10 +118,14 @@ impl Host for CheatingHost{
                 self.possible_sequences.remove(&seq);
             }
         }
-        return *ans;
+        let seq = self.possible_sequences.iter().next().unwrap().clone();
+        let code = string_to_code(seq);
+        let (hash, salt) = hash(code.clone());
+        let proof = prove_guess(code, string_to_code(sequence), salt, hash, ans.0 as u8, ans.1 as u8);
+        return (ans.0, ans.1, proof);
     }
     
-    fn get_hash_with_proof(&self) -> ([u8; 32], CodeProof) {
+    fn get_hash_with_proof(&self) -> ([u8; 32], Proof) {
         let seq = self.possible_sequences.iter().next().unwrap().clone();
         let code = string_to_code(seq);
         let (hash, salt) = hash(code.clone());
