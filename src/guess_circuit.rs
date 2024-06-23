@@ -141,7 +141,7 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for GuessCircuit {
             counter2 = FpVar::conditionally_select(&is_equal, &(&counter2+code), &(&counter2+guess)).unwrap();
         });
         
-        common_var.enforce_equal(&(counter2-&counter)).unwrap();
+        common_var.enforce_equal(&counter2).unwrap();
 
         Ok(())
     }
