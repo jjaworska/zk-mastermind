@@ -17,7 +17,7 @@ use crate::guess_circuit::GuessCircuit;
 
 use super::crypto::Code;
 use super::code_circuit::CodeDeclarationCircuit;
-
+use super::crypto::CODE_LENGTH;
 
 type Curve = ark_bls12_381::Bls12_381;
 type CircuitField = Fr;
@@ -41,20 +41,27 @@ impl From<[u8; 32]> for PublicInput {
 
 pub struct PublicGuessInput(Vec<Fp<MontBackend<FrConfig, 4>, 4>>);
 
-impl From<([u8; 32], u8, u8)> for PublicGuessInput {
-    fn from(value: ([u8; 32], u8, u8)) -> Self {
-        let size: usize = value.0.len();
+impl From<([u8; CODE_LENGTH], [u8; 32], u8, u8)> for PublicGuessInput {
+    fn from(value: ([u8; CODE_LENGTH], [u8; 32], u8, u8)) -> Self {
+        let size_guess: usize = value.0.len();
+        let mut input_guess: Vec<Fp<MontBackend<FrConfig, 4>, 4>> = vec![CircuitField::zero(); 0];
+        for i in 0..CODE_LENGTH {
+            input_guess.push(value.0[i].into());
+        }
+
+        let size: usize = value.1.len();
         let mut input = vec![CircuitField::zero(); 8 * size];
         for i in 0..32 {
             for j in 0..8 {
-                if value.0[i] >> j & 1 == 1 {
+                if value.1[i] >> j & 1 == 1 {
                     input[i * 8 + j] = CircuitField::one();
                 }
             }
         }
-        input.push(value.1.into());
         input.push(value.2.into());
-        PublicGuessInput(input)
+        input.push(value.3.into());
+        input_guess.append(&mut input);
+        PublicGuessInput(input_guess)
     }
 }
 
@@ -89,8 +96,8 @@ pub fn prove_guess(code:Code, guess:Code, salt: [u8; 32], hash: [u8; 32], correc
     Proof{proof, vk}
 }
 
-pub fn verify_guess(hash: [u8; 32], correct: u8, common: u8, proof: Proof) -> bool{
-    let input = PublicGuessInput::from((hash, correct, common));
+pub fn verify_guess(guess: [u8; CODE_LENGTH], hash: [u8; 32], correct: u8, common: u8, proof: Proof) -> bool{
+    let input = PublicGuessInput::from((guess, hash, correct, common));
     Groth16::<_, LibsnarkReduction>::verify(&proof.vk, &input.0, &proof.proof).unwrap()
 }
 

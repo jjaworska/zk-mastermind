@@ -39,7 +39,7 @@ impl Host for HonestHost {
     }
     fn guess(&mut self, sequence: String)-> (usize, usize, Proof) {
         let (correct, common) = (same(self.sequence.clone(), sequence.clone()), common(self.sequence.clone(), sequence.clone()));
-        let proof = prove_guess(string_to_code(self.sequence.clone()), string_to_code(sequence), self.salt, self.hash, correct as u8, common as u8);
+        let proof = prove_guess(string_to_code(self.sequence.clone()), string_to_code(sequence.clone()), self.salt, self.hash, correct as u8, common as u8);
         return (correct, common, proof)
     }
     

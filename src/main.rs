@@ -13,6 +13,7 @@ use host::{EvilHost, HonestHost, Host};
 use eframe::egui;
 use proof::{verify, verify_guess};
 use regex::Regex;
+use utils::string_to_code;
 
 const GUESSES: usize = 8;
 const SEQLEN: usize = 4;
@@ -68,8 +69,8 @@ impl <H>  MyApp <H> where H:Host {
         let pattern: Regex = Regex::new(r"^[a-h]{4}$").unwrap();
         let mut s = self.buffer[i].clone();
         if pattern.is_match(&mut s) {
-            let (same, common, proof) = self.host.guess(s);
-            assert!(verify_guess(self.hash_commited, same as u8, common as u8, proof));
+            let (same, common, proof) = self.host.guess(s.clone());
+            assert!(verify_guess(string_to_code(s.clone()).colors, self.hash_commited, same as u8, common as u8, proof));
             let mut response = ['x'; SEQLEN];
             for j in 0usize..common {
                 response[j] = 'y';

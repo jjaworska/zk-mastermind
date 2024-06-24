@@ -66,7 +66,7 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for GuessCircuit {
         let guess_vars: [FpVar<CircuitField>; CODE_LENGTH] = self
             .guess
             .colors
-            .map(|col| FpVar::new_witness(ns!(cs, "guess"), || Ok(CircuitField::from(col))).unwrap());
+            .map(|col| FpVar::new_input(ns!(cs, "guess"), || Ok(CircuitField::from(col))).unwrap());
 
 
         let salt_vars: [UInt8<CircuitField>; 32] = self
